@@ -10,7 +10,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ▼▼▼ あなたの Firebase 設定情報を組み込みました ▼▼▼
         const firebaseConfig = {
             apiKey: "AIzaSyAxoUKEXLjwd_GO68LnIubtdHQPtHQR3Ak",
             authDomain: "ninjya-a755c.firebaseapp.com",
@@ -20,24 +19,20 @@
             appId: "1:383244158073:web:a1623d1779a2e0ffda00a8",
             measurementId: "G-GY8J4F3BH3"
         };
-        // ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // グローバル連携用
         window.db = db;
         window.fs = { doc, setDoc, onSnapshot };
 
-        // データベース（Firestore）のリアルタイム監視を開始
         window.initFirebaseListener = function() {
             const roomRef = doc(db, "rooms", "default_room");
             onSnapshot(roomRef, (docSnap) => {
                 if (docSnap.exists()) {
                     window.roomData = docSnap.data();
                 } else {
-                    // 初期データ作成
-                    window.roomData = { mapImage: '', players: {}, logs: [] };
+                    window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 } };
                     setDoc(roomRef, window.roomData);
                 }
                 if (typeof window.refreshUI === 'function') {
@@ -126,7 +121,7 @@
         .chat-container { display: flex; flex-direction: column; height: 100%; }
         #chat-log { flex: 1; overflow-y: auto; padding: 12px; background: #111214; display: flex; flex-direction: column; gap: 12px; }
         .chat-item { display: flex; gap: 10px; align-items: flex-start; }
-        .chat-avatar { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #2b2d31; flex-shrink: 0; }
+        .chat-avatar { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #2b2d31; flex-shrink: 0; border: 1px solid var(--border-color); }
         .chat-content { flex: 1; }
         .chat-header-info { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
         .chat-name { font-size: 0.85rem; font-weight: 600; color: var(--accent-blue); }
@@ -149,8 +144,10 @@
         .gm-table th, .gm-table td { border: 1px solid var(--border-color); padding: 6px; text-align: center; }
         .gm-table th { background: var(--card-header-bg); color: var(--text-sub); }
 
-        .player-info-card { background: #1e1f22; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+        .player-info-card { background: #1e1f22; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; margin-bottom: 8px; display: flex; gap: 8px; }
         .player-info-card:last-child { margin-bottom: 0; }
+        .player-info-avatar { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; background: #111214; border: 1px solid var(--border-color); flex-shrink: 0; }
+        .player-info-main { flex: 1; }
         .player-info-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.85rem; color: var(--accent-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin-bottom: 6px; }
         .player-info-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 0.75rem; text-align: center; background: #111214; padding: 4px; border-radius: 4px; margin-bottom: 6px; }
         .player-info-items { font-size: 0.75rem; color: var(--text-sub); word-break: break-all; }
@@ -164,6 +161,19 @@
         #tenchu-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(139, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 4000; flex-direction: column; }
         #tenchu-text { font-size: 4rem; color: #fff; text-shadow: 0 0 20px #f1c40f; font-weight: 900; letter-spacing: 8px; animation: shake 0.2s infinite; }
 
+        /* ダイスポップアップ演出 */
+        #dice-popup-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 3500; pointer-events: none; }
+        .dice-popup-box { background: #222428; border: 2px solid var(--accent-gold); border-radius: 12px; padding: 20px 30px; display: flex; align-items: center; gap: 20px; box-shadow: 0 0 30px rgba(241, 196, 15, 0.4); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .dice-popup-img { width: 90px; height: 90px; border-radius: 8px; object-fit: cover; border: 2px solid var(--accent-gold); }
+        .dice-popup-info { display: flex; flex-direction: column; gap: 6px; }
+        .dice-popup-name { font-size: 1.1rem; font-weight: bold; color: var(--accent-gold); }
+        .dice-popup-result { font-size: 1.3rem; font-weight: bold; color: #ffffff; }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         @keyframes shake {
             0% { transform: translate(2px, 2px); }
             50% { transform: translate(-2px, -2px); }
@@ -173,6 +183,8 @@
         .rule-section { margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
         .rule-section:last-child { border-bottom: none; }
         .rule-title { color: var(--accent-gold); font-weight: bold; font-size: 0.95rem; margin-bottom: 6px; }
+        .rule-text { font-size: 0.82rem; color: var(--text-main); line-height: 1.6; margin: 4px 0; }
+        .rule-sub { color: var(--text-sub); font-size: 0.78rem; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -199,6 +211,20 @@
         <div id="tenchu-sub" style="font-size: 1.2rem; color: #fff; margin-top: 15px;"></div>
     </div>
 
+    <!-- ダイスポップアップ演出 -->
+    <div id="dice-popup-overlay">
+        <div class="dice-popup-box">
+            <img id="dice-popup-img" class="dice-popup-img" src="">
+            <div class="dice-popup-info">
+                <div id="dice-popup-name" class="dice-popup-name"></div>
+                <div id="dice-popup-result" class="dice-popup-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BGMオーディオタグ -->
+    <audio id="bgm-player" loop></audio>
+
     <!-- ヘッダー -->
     <header>
         <h1>🥷 忍者TRPG セッションルーム</h1>
@@ -213,7 +239,7 @@
         <!-- 左カラム -->
         <div class="column">
             <div class="card" id="pl-avatar-card">
-                <div class="card-header">立ち絵設定</div>
+                <div class="card-header">立ち絵・アイコン設定</div>
                 <div class="card-body" style="display:flex; gap:10px; align-items:center;">
                     <img id="my-avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><rect width='50' height='50' fill='%23333'/></svg>" style="width:50px; height:50px; border-radius:4px; object-fit:cover; border:1px solid var(--border-color);">
                     <input type="file" id="avatar-input" accept="image/*" onchange="uploadAvatar(this)" style="font-size:0.75rem;">
@@ -253,6 +279,20 @@
             <div class="card" id="gm-panel" style="display: none; border: 1px solid var(--accent-red);">
                 <div class="card-header" style="color:var(--accent-red); background:#2a1114;">⚙️ GM専用操作パネル</div>
                 <div class="card-body">
+                    <!-- BGMコントロール -->
+                    <div style="margin-bottom: 12px; background:#1e1f22; padding:8px; border-radius:4px; border:1px solid var(--border-color);">
+                        <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:6px; color:var(--accent-gold);">🎵 セッションBGM管理</div>
+                        <input type="file" id="bgm-file-input" accept="audio/*" style="font-size:0.75rem; margin-bottom:6px;">
+                        <div style="display:flex; gap:6px; margin-bottom:6px;">
+                            <button class="btn btn-primary" style="flex:1; font-size:0.75rem;" onclick="toggleBgmPlay(true)">▶ 再生</button>
+                            <button class="btn" style="flex:1; font-size:0.75rem;" onclick="toggleBgmPlay(false)">⏸ 停止</button>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem;">
+                            <span>音量:</span>
+                            <input type="range" id="bgm-volume" min="0" max="1" step="0.05" value="0.5" onchange="updateBgmVolume(this.value)" style="flex:1;">
+                        </div>
+                    </div>
+
                     <div style="margin-bottom: 12px; background:#1e1f22; padding:8px; border-radius:4px; border:1px solid var(--border-color);">
                         <label style="font-size:0.75rem; color:var(--text-sub);">天誅対象:</label>
                         <select id="tenchu-select" style="margin-bottom:5px;"></select>
@@ -318,7 +358,7 @@
             </div>
         </div>
 
-        <!-- 右カラム：プレイヤー一覧 -->
+        <!-- 右カラム：プレイヤー一覧 & 支給品道具 -->
         <div class="column">
             <div class="card">
                 <div class="card-header" style="color:var(--accent-blue);">👥 忍び一覧</div>
@@ -326,17 +366,20 @@
             </div>
 
             <div class="card">
-                <div class="card-header">支給道具一覧</div>
-                <div class="card-body">
+                <div class="card-header">支給品道具一覧</div>
+                <div class="card-body" style="max-height: 350px; overflow-y: auto;">
                     <ul style="font-size:0.75rem; padding-left: 15px; margin: 0; color:var(--text-sub); line-height:1.6;">
-                        <li><strong>手裏剣</strong>: 全員所持 / 「忍」で命中</li>
-                        <li><strong>刀</strong>: 全員所持 / 「体」で命中</li>
-                        <li><strong>痺れ団子</strong>: 食べた者を一定時間痺れさせる</li>
-                        <li><strong>毒吹き矢</strong>: 「忍」で命中・即死</li>
-                        <li><strong>爆弾</strong>: 爆発（隠密可）</li>
-                        <li><strong>変装道具</strong>: 瞬時に化けてNPCを欺く</li>
-                        <li><strong>煙玉</strong>: 広範囲を煙で覆う（隠密可）</li>
-                        <li><strong>撒き菱</strong>: 踏んだ相手は走れなくなる</li>
+                        <li style="margin-bottom:6px;"><strong>手裏剣</strong>: 全員所持 / 「忍」で命中。遠距離の敵を攻撃する。</li>
+                        <li style="margin-bottom:6px;"><strong>刀</strong>: 全員所持 / 「体」で命中。近接の敵を斬り伏せる。</li>
+                        <li style="margin-bottom:6px;"><strong>痺れ団子</strong>: 判定不要で使用可能。食べた者を一定時間痺れさせることができる。訓練を積んだ忍びでなければ（使用者の意思によっては）そのまま殺すこともできる。気づかれずに使用するには「忍」の判定が必要。</li>
+                        <li style="margin-bottom:6px;"><strong>毒吹き矢</strong>: 「忍」で判定する。生き物に命中させた場合、対象を確実に殺すことができる。追加の判定なしで、他の忍びに気づかれずに使うことができる。</li>
+                        <li style="margin-bottom:6px;"><strong>火矢</strong>: 「忍」で判定する。場所や生き物に命中させ、対象を燃やすことができる。気づかれずに使用するには追加で「忍」の判定が必要。</li>
+                        <li style="margin-bottom:6px;"><strong>爆弾</strong>: 判定不要で使用可能。設置もしくは投げてから数秒後に爆発する。投げて使用する場合でも、追加の判定なしで、他の忍びに気づかれずに使うことができる。</li>
+                        <li style="margin-bottom:6px;"><strong>変装道具</strong>: 判定不要で使用可能。瞬時にどんなものにも化け、NPC の目を欺くことができる。使用後に「運」の判定に成功すれば再び使用することができる。</li>
+                        <li style="margin-bottom:6px;"><strong>地雷</strong>: 判定不要で使用可能。場所や物に仕掛け、次に誰かが触れた時に爆発する。追加の判定なしで、他の忍びに気づかれずに使うことができる。</li>
+                        <li style="margin-bottom:6px;"><strong>煙玉</strong>: 判定不要で使用可能。広範囲が煙に包まれ、自分も敵も周囲の様子がわからなくなる。</li>
+                        <li style="margin-bottom:6px;"><strong>撒き菱</strong>: 判定不要で使用可能。広範囲に見えづらい撒き菱が敷かれ、踏んだ相手は走ることができなくなる。</li>
+                        <li style="margin-bottom:6px;"><strong>忍猿</strong>: 様々な命令をこなすことができる猿、簡単な命令であれば判定は不要だが、高度な命令をする際には「運」の判定が必要。</li>
                     </ul>
                 </div>
             </div>
@@ -347,13 +390,50 @@
     <div id="rule-modal" class="modal">
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom: 1px solid var(--border-color); padding-bottom:8px;">
-                <h3 style="margin:0; color:var(--text-main);">📜 ルールブック</h3>
+                <h3 style="margin:0; color:var(--text-main);">📜 アホでもわかるパラノイア風忍者TRPG ルールブック</h3>
                 <span style="cursor:pointer; font-size:1.4rem;" onclick="closeModal('rule-modal')">&times;</span>
             </div>
             <div style="font-size: 0.8rem; color:var(--text-main); line-height: 1.6;">
                 <div class="rule-section">
-                    <div class="rule-title">【概要】</div>
-                    <p style="margin:0;">時は江戸。忍者たちは任務を遂行するフリをしつつ、裏任務を全うします。変な行動をすると「天誅」で殺されますが、分身が次々に登場します。</p>
+                    <div class="rule-title">【1. 世界観・背景】</div>
+                    <div class="rule-text">時は江戸時代。プレイヤーは殿様（GM）に仕える忍びとなります。</div>
+                    <div class="rule-text">殿様から命じられる「表の任務」を成功させることが建前ですが、同時に各プレイヤーには里や個人の思惑による「裏の任務（秘匿命令）」が与えられています。</div>
+                    <div class="rule-text">仲間の忍びを信用してはなりません。裏切り、隠蔽、暗殺、そして殿様へのゴマすりが日常茶飯事のディストピア忍者世界です。</div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">【2. 勝利条件】</div>
+                    <div class="rule-text">・表の任務を達成し、無事に生きて里へ帰還すること。</div>
+                    <div class="rule-text">・自身に与えられた「裏の任務」を秘密裏に完遂すること。</div>
+                    <div class="rule-text">・（可能であれば）ライバルとなる他の忍びを陥れ、自分の手柄にすること。</div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">【3. ステータスと判定】</div>
+                    <div class="rule-text">忍びの能力は以下の4つの能力値（初期合計44）で表されます。</div>
+                    <div class="rule-text">・<strong>体（身体能力・近接攻撃）</strong>: 刀での攻撃、壁登り、体力勝負など。</div>
+                    <div class="rule-text">・<strong>忍（隠密・遠距離・暗殺）</strong>: 姿を隠す、手裏剣・毒吹き矢・火矢の使用など。</div>
+                    <div class="rule-text">・<strong>運（幸運・特殊）</strong>: 変装道具の再利用、忍猿への高度な指示、不測の事態の回避など。</div>
+                    <div class="rule-text">・<strong>術（忍術・知略）</strong>: 忍術の発動、情報収集、トラップの解除や看破など。</div>
+                    <div class="rule-sub">※判定方法: 1d20（または1d100）を振り、出目が自身の「目標値（能力値）」以下であれば成功となります。</div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">【4. 分身システム（残機）】</div>
+                    <div class="rule-text">忍びは極めて高度な「分身の術」を習得しています。各プレイヤーはセッション開始時にランダムな数の分身（残機：8〜12人程度）を保持しています。</div>
+                    <div class="rule-text">任務中に死亡したり天誅を受けたりした場合、その場で即座に次の分身がどこからともなく現れてセッションを継続します。性格や能力値はそのまま引き継がれます。</div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">【5. 天誅（GMによる絶対処刑）】</div>
+                    <div class="rule-text">殿様（GM）の不興を買う行為、殿様への反逆、公の場でのあからさまな不審行動、あるいは単に殿様の不機嫌によって、いつでも「天誅」が下されます。</div>
+                    <div class="rule-text">天誅を受けた忍びは判定なしで即死し、分身（残機）を1つ失います。殿様の言うことは絶対です。</div>
+                </div>
+
+                <div class="rule-section">
+                    <div class="rule-title">【6. 秘匿チャットと裏切り】</div>
+                    <div class="rule-text">プレイヤーはいつでもGMへ「秘匿メッセージ」を送信できます。</div>
+                    <div class="rule-text">「他の忍びの持ち物にこっそり毒を仕込む」「仲間を罠に嵌める」「裏任務の報告をする」など、他のプレイヤーに気付かれないよう暗躍してください。</div>
                 </div>
             </div>
         </div>
@@ -361,7 +441,7 @@
 
     <script>
         let currentUser = { role: 'PL', name: '', avatar: '' };
-        window.roomData = { mapImage: '', players: {}, logs: [] };
+        window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 } };
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -398,6 +478,21 @@
 
         window.onload = function() {
             if (window.initFirebaseListener) window.initFirebaseListener();
+
+            document.getElementById('bgm-file-input').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    window.roomData.bgm = {
+                        url: evt.target.result,
+                        playing: true,
+                        volume: parseFloat(document.getElementById('bgm-volume').value)
+                    };
+                    saveToFirebase();
+                };
+                reader.readAsDataURL(file);
+            });
         };
 
         function saveToFirebase() {
@@ -408,7 +503,7 @@
         function resetRoomData() {
             if (currentUser.role !== 'GM') return;
             if (confirm('本当に部屋のデータを初期化しますか？')) {
-                window.roomData = { mapImage: '', players: {}, logs: [] };
+                window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 } };
                 saveToFirebase();
             }
         }
@@ -513,6 +608,7 @@
                 const base64 = e.target.result;
                 document.getElementById('my-avatar-preview').src = base64;
                 if (currentUser.role === 'PL') {
+                    currentUser.avatar = base64;
                     window.roomData.players[currentUser.name].avatar = base64;
                     saveToFirebase();
                 }
@@ -551,6 +647,10 @@
             }
 
             const avatar = currentUser.role === 'PL' ? (window.roomData.players[currentUser.name]?.avatar || '') : '';
+
+            // 立ち絵設定時のポップアップ演出
+            showDicePopup(currentUser.name, avatar, resultMsg);
+
             window.roomData.logs.push({
                 sender: currentUser.name,
                 text: resultMsg,
@@ -558,6 +658,28 @@
                 isSecret: false
             });
             saveToFirebase();
+        }
+
+        function showDicePopup(name, avatar, resultText) {
+            const overlay = document.getElementById('dice-popup-overlay');
+            const imgEl = document.getElementById('dice-popup-img');
+            const nameEl = document.getElementById('dice-popup-name');
+            const resultEl = document.getElementById('dice-popup-result');
+
+            if (avatar) {
+                imgEl.src = avatar;
+                imgEl.style.display = 'block';
+            } else {
+                imgEl.style.display = 'none';
+            }
+
+            nameEl.innerText = name;
+            resultEl.innerText = resultText;
+            overlay.style.display = 'flex';
+
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 2200);
         }
 
         function sendChatMessage() {
@@ -624,6 +746,20 @@
             saveToFirebase();
         }
 
+        function toggleBgmPlay(play) {
+            if (!window.roomData.bgm) window.roomData.bgm = {};
+            window.roomData.bgm.playing = play;
+            saveToFirebase();
+        }
+
+        function updateBgmVolume(vol) {
+            if (!window.roomData.bgm) window.roomData.bgm = {};
+            window.roomData.bgm.volume = parseFloat(vol);
+            const player = document.getElementById('bgm-player');
+            player.volume = window.roomData.bgm.volume;
+            saveToFirebase();
+        }
+
         function assignSecretMission() {
             const target = document.getElementById('mission-target-select').value;
             const text = document.getElementById('mission-text-input').value;
@@ -642,6 +778,22 @@
         }
 
         function refreshUI() {
+            // BGMの更新処理
+            const bgmPlayer = document.getElementById('bgm-player');
+            if (window.roomData.bgm && window.roomData.bgm.url) {
+                if (bgmPlayer.src !== window.roomData.bgm.url) {
+                    bgmPlayer.src = window.roomData.bgm.url;
+                }
+                bgmPlayer.volume = window.roomData.bgm.volume !== undefined ? window.roomData.bgm.volume : 0.5;
+                if (window.roomData.bgm.playing) {
+                    bgmPlayer.play().catch(() => {});
+                } else {
+                    bgmPlayer.pause();
+                }
+            } else {
+                bgmPlayer.pause();
+            }
+
             const mapImg = document.getElementById('map-display');
             if (window.roomData.mapImage) {
                 mapImg.src = window.roomData.mapImage;
@@ -692,19 +844,24 @@
                     const p = window.roomData.players[pName];
                     const card = document.createElement('div');
                     card.className = 'player-info-card';
+                    const avatarSrc = p.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect width='48' height='48' fill='%232b2d31'/></svg>";
+                    
                     card.innerHTML = `
-                        <div class="player-info-header">
-                            <span>${escapeHtml(pName)}</span>
-                            <span style="font-size:0.75rem; color:var(--accent-gold);">残分身: ${p.lives}人</span>
-                        </div>
-                        <div class="player-info-stats">
-                            <div>体:${p.stats.tai}</div>
-                            <div>忍:${p.stats.nin}</div>
-                            <div>運:${p.stats.un}</div>
-                            <div>術:${p.stats.jutsu}</div>
-                        </div>
-                        <div class="player-info-items">
-                            <strong>所持品:</strong> ${escapeHtml(p.items || 'なし')}
+                        <img class="player-info-avatar" src="${avatarSrc}">
+                        <div class="player-info-main">
+                            <div class="player-info-header">
+                                <span>${escapeHtml(pName)}</span>
+                                <span style="font-size:0.75rem; color:var(--accent-gold);">残分身: ${p.lives}人</span>
+                            </div>
+                            <div class="player-info-stats">
+                                <div>体:${p.stats.tai}</div>
+                                <div>忍:${p.stats.nin}</div>
+                                <div>運:${p.stats.un}</div>
+                                <div>術:${p.stats.jutsu}</div>
+                            </div>
+                            <div class="player-info-items">
+                                <strong>所持品:</strong> ${escapeHtml(p.items || 'なし')}
+                            </div>
                         </div>
                     `;
                     allPlayersContainer.appendChild(card);
