@@ -4,6 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>アホでもわかるパラノイア風忍者TRPG セッションツール</title>
+    
+    <!-- Firebase SDK (Firestore Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ▼▼▼ あなたの Firebase 設定情報を組み込みました ▼▼▼
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxoUKEXLjwd_GO68LnIubtdHQPtHQR3Ak",
+            authDomain: "ninjya-a755c.firebaseapp.com",
+            projectId: "ninjya-a755c",
+            storageBucket: "ninjya-a755c.firebasestorage.app",
+            messagingSenderId: "383244158073",
+            appId: "1:383244158073:web:a1623d1779a2e0ffda00a8",
+            measurementId: "G-GY8J4F3BH3"
+        };
+        // ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // グローバル連携用
+        window.db = db;
+        window.fs = { doc, setDoc, onSnapshot };
+
+        // データベース（Firestore）のリアルタイム監視を開始
+        window.initFirebaseListener = function() {
+            const roomRef = doc(db, "rooms", "default_room");
+            onSnapshot(roomRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    window.roomData = docSnap.data();
+                } else {
+                    // 初期データ作成
+                    window.roomData = { mapImage: '', players: {}, logs: [] };
+                    setDoc(roomRef, window.roomData);
+                }
+                if (typeof window.refreshUI === 'function') {
+                    window.refreshUI();
+                }
+            });
+        };
+    </script>
+
     <style>
         :root {
             --bg-color: #18191c;
@@ -19,324 +62,125 @@
             --input-bg: #1e1f22;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            margin: 0; padding: 0; height: 100vh;
+            display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* --- ヘッダー（ココフォリア風トップバー） --- */
         header {
             background-color: #111214;
             border-bottom: 1px solid var(--border-color);
             padding: 8px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 48px;
-            flex-shrink: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            height: 48px; flex-shrink: 0;
         }
 
-        h1 {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        h1 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
 
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .user-badge { background: #2b2d31; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: var(--accent-gold); border: 1px solid var(--border-color); }
 
-        .user-badge {
-            background: #2b2d31;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            color: var(--accent-gold);
-            border: 1px solid var(--border-color);
-        }
-
-        /* --- ボタン共通スタイル --- */
         .btn {
-            background-color: #313338;
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            padding: 6px 12px;
-            cursor: pointer;
-            font-weight: 500;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            transition: background-color 0.15s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
+            background-color: #313338; color: var(--text-main);
+            border: 1px solid var(--border-color); padding: 6px 12px;
+            cursor: pointer; font-weight: 500; border-radius: 4px; font-size: 0.85rem;
+            transition: background-color 0.15s ease; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
         }
-
         .btn:hover { background-color: #3b3d44; }
         .btn-primary { background-color: #5865f2; border: none; }
         .btn-primary:hover { background-color: #4752c4; }
         .btn-danger { background-color: var(--accent-red); border: none; }
         .btn-danger:hover { background-color: #c0392b; }
 
-        /* --- メインレイアウト（3カラム） --- */
         .app-container {
-            display: grid;
-            grid-template-columns: 280px 1fr 300px;
-            flex: 1;
-            overflow: hidden;
-            background: #1e1f22;
+            display: grid; grid-template-columns: 280px 1fr 320px;
+            flex: 1; overflow: hidden; background: #1e1f22;
         }
 
         @media (max-width: 1024px) {
-            .app-container {
-                grid-template-columns: 1fr;
-                overflow-y: auto;
-            }
+            .app-container { grid-template-columns: 1fr; overflow-y: auto; }
         }
 
         .column {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 10px;
-            overflow-y: auto;
-            background: var(--bg-color);
-            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; gap: 10px; padding: 10px;
+            overflow-y: auto; background: var(--bg-color); border-right: 1px solid var(--border-color);
         }
+        .column:last-child { border-right: none; }
 
-        .column:last-child {
-            border-right: none;
-        }
-
-        /* --- カード / パネルデザイン --- */
         .card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            background-color: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.2); flex-shrink: 0;
         }
-
         .card-header {
-            background-color: var(--card-header-bg);
-            padding: 8px 12px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-sub);
-            border-bottom: 1px solid var(--border-color);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            background-color: var(--card-header-bg); padding: 8px 12px;
+            font-size: 0.85rem; font-weight: 600; color: var(--text-sub);
+            border-bottom: 1px solid var(--border-color); text-transform: uppercase; letter-spacing: 0.5px;
         }
+        .card-body { padding: 12px; }
 
-        .card-body {
-            padding: 12px;
-        }
-
-        /* --- チャット・メッセージ（ココフォリア風） --- */
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        #chat-log {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            background: #111214;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .chat-item {
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-        }
-
-        .chat-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 4px;
-            object-fit: cover;
-            background: #2b2d31;
-            flex-shrink: 0;
-        }
-
-        .chat-content {
-            flex: 1;
-        }
-
-        .chat-header-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 2px;
-        }
-
-        .chat-name {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--accent-blue);
-        }
-
+        .chat-container { display: flex; flex-direction: column; height: 100%; }
+        #chat-log { flex: 1; overflow-y: auto; padding: 12px; background: #111214; display: flex; flex-direction: column; gap: 12px; }
+        .chat-item { display: flex; gap: 10px; align-items: flex-start; }
+        .chat-avatar { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #2b2d31; flex-shrink: 0; }
+        .chat-content { flex: 1; }
+        .chat-header-info { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+        .chat-name { font-size: 0.85rem; font-weight: 600; color: var(--accent-blue); }
         .chat-text {
-            font-size: 0.9rem;
-            color: var(--text-main);
-            line-height: 1.4;
-            word-break: break-word;
-            background: #2b2d31;
-            padding: 6px 10px;
-            border-radius: 0 6px 6px 6px;
-            display: inline-block;
+            font-size: 0.9rem; color: var(--text-main); line-height: 1.4; word-break: break-word;
+            background: #2b2d31; padding: 6px 10px; border-radius: 0 6px 6px 6px; display: inline-block;
         }
+        .chat-secret .chat-text { background: #2d1836; border: 1px solid var(--accent-purple); color: #e0b0ff; }
+        .chat-input-area { padding: 10px; background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
 
-        .chat-secret .chat-text {
-            background: #2d1836;
-            border: 1px solid var(--accent-purple);
-            color: #e0b0ff;
-        }
-
-        .chat-input-area {
-            padding: 10px;
-            background: var(--card-bg);
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        /* --- 入力要素 --- */
         input[type="text"], input[type="number"], select, textarea {
-            background-color: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            width: 100%;
+            background-color: var(--input-bg); border: 1px solid var(--border-color);
+            color: var(--text-main); padding: 6px 10px; border-radius: 4px; font-size: 0.85rem; width: 100%;
         }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #5865f2; }
 
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #5865f2;
-        }
+        #map-display { width: 100%; height: 220px; object-fit: contain; background: #000; border-radius: 4px; display: none; }
 
-        /* --- マップ画面 --- */
-        #map-display {
-            width: 100%;
-            height: 220px;
-            object-fit: contain;
-            background: #000;
-            border-radius: 4px;
-            display: none;
-        }
+        .gm-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .gm-table th, .gm-table td { border: 1px solid var(--border-color); padding: 6px; text-align: center; }
+        .gm-table th { background: var(--card-header-bg); color: var(--text-sub); }
 
-        /* --- GM管理テーブル --- */
-        .gm-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.8rem;
-        }
+        .player-info-card { background: #1e1f22; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+        .player-info-card:last-child { margin-bottom: 0; }
+        .player-info-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.85rem; color: var(--accent-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin-bottom: 6px; }
+        .player-info-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 0.75rem; text-align: center; background: #111214; padding: 4px; border-radius: 4px; margin-bottom: 6px; }
+        .player-info-items { font-size: 0.75rem; color: var(--text-sub); word-break: break-all; }
 
-        .gm-table th, .gm-table td {
-            border: 1px solid var(--border-color);
-            padding: 6px;
-            text-align: center;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(2px); }
+        .modal-content { background: var(--card-bg); width: 90%; max-width: 650px; max-height: 85vh; overflow-y: auto; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
 
-        .gm-table th {
-            background: var(--card-header-bg);
-            color: var(--text-sub);
-        }
+        #entry-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111214; display: flex; justify-content: center; align-items: center; z-index: 3000; }
+        .entry-box { background: var(--card-bg); border: 1px solid var(--border-color); padding: 30px; border-radius: 8px; width: 340px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
 
-        /* --- モーダル & オーバーレイ --- */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.75);
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            backdrop-filter: blur(2px);
-        }
-
-        .modal-content {
-            background: var(--card-bg);
-            width: 90%;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-        }
-
-        /* 入室モーダル */
-        #entry-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #111214;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 3000;
-        }
-
-        .entry-box {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            padding: 30px;
-            border-radius: 8px;
-            width: 340px;
-            text-align: center;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-        }
-
-        /* 天誅オーバーレイ */
-        #tenchu-overlay {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(139, 0, 0, 0.85);
-            display: none; justify-content: center; align-items: center;
-            z-index: 4000; flex-direction: column;
-        }
-
-        #tenchu-text {
-            font-size: 4rem; color: #fff; text-shadow: 0 0 20px #f1c40f;
-            font-weight: 900; letter-spacing: 8px;
-            animation: shake 0.2s infinite;
-        }
+        #tenchu-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(139, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 4000; flex-direction: column; }
+        #tenchu-text { font-size: 4rem; color: #fff; text-shadow: 0 0 20px #f1c40f; font-weight: 900; letter-spacing: 8px; animation: shake 0.2s infinite; }
 
         @keyframes shake {
             0% { transform: translate(2px, 2px); }
             50% { transform: translate(-2px, -2px); }
             100% { transform: translate(2px, -2px); }
         }
+
+        .rule-section { margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+        .rule-section:last-child { border-bottom: none; }
+        .rule-title { color: var(--accent-gold); font-weight: bold; font-size: 0.95rem; margin-bottom: 6px; }
     </style>
 </head>
 <body>
 
-    <!-- 1. 入室スクリーン -->
+    <!-- 入室画面 -->
     <div id="entry-screen">
         <div class="entry-box">
-            <h2 style="margin-top:0; color:var(--text-main);">CCFOLIA StyleTRPG</h2>
+            <h2 style="margin-top:0; color:var(--text-main);">忍者TRPG セッション</h2>
             <p style="font-size:0.8rem; color:var(--text-sub); margin-bottom:20px;">アホでもわかるパラノイア風忍者TRPG</p>
             <div style="margin-bottom: 15px; display:flex; justify-content:center; gap:15px; font-size:0.9rem;">
                 <label><input type="radio" name="role-select" value="PL" checked onclick="toggleRoleInput()"> プレイヤー(PL)</label>
@@ -349,13 +193,13 @@
         </div>
     </div>
 
-    <!-- 2. 天誅演出オーバーレイ -->
+    <!-- 天誅演出 -->
     <div id="tenchu-overlay">
         <div id="tenchu-text">天誅！！</div>
         <div id="tenchu-sub" style="font-size: 1.2rem; color: #fff; margin-top: 15px;"></div>
     </div>
 
-    <!-- 3. トップヘッダー -->
+    <!-- ヘッダー -->
     <header>
         <h1>🥷 忍者TRPG セッションルーム</h1>
         <div class="header-actions">
@@ -364,12 +208,10 @@
         </div>
     </header>
 
-    <!-- 4. メインアプリケーション領域 -->
+    <!-- メイン領域 -->
     <div class="app-container">
-        
-        <!-- 左カラム：キャラクター・ダイス操作 -->
+        <!-- 左カラム -->
         <div class="column">
-            <!-- 立ち絵設定 -->
             <div class="card" id="pl-avatar-card">
                 <div class="card-header">立ち絵設定</div>
                 <div class="card-body" style="display:flex; gap:10px; align-items:center;">
@@ -378,9 +220,8 @@
                 </div>
             </div>
 
-            <!-- ステータス設定 (PL用) -->
             <div class="card" id="pl-status-card">
-                <div class="card-header">ステータス (合計44)</div>
+                <div class="card-header">自分のステータス (合計44)</div>
                 <div class="card-body">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; margin-bottom:8px;">
                         <label>体: <input type="number" id="st-tai" value="11" min="6" max="16" onchange="calcStats()"></label>
@@ -393,7 +234,6 @@
                 </div>
             </div>
 
-            <!-- ダイスロール -->
             <div class="card">
                 <div class="card-header">ダイスロール</div>
                 <div class="card-body" style="display:flex; flex-direction:column; gap:8px;">
@@ -409,11 +249,39 @@
                 </div>
             </div>
 
-            <!-- PL専用持ち物・極秘情報 -->
+            <!-- GM専用パネル -->
+            <div class="card" id="gm-panel" style="display: none; border: 1px solid var(--accent-red);">
+                <div class="card-header" style="color:var(--accent-red); background:#2a1114;">⚙️ GM専用操作パネル</div>
+                <div class="card-body">
+                    <div style="margin-bottom: 12px; background:#1e1f22; padding:8px; border-radius:4px; border:1px solid var(--border-color);">
+                        <label style="font-size:0.75rem; color:var(--text-sub);">天誅対象:</label>
+                        <select id="tenchu-select" style="margin-bottom:5px;"></select>
+                        <button class="btn btn-danger" style="width: 100%; font-weight:bold;" onclick="triggerTenchu()">⚡ 天誅実行 (SE付き)</button>
+                    </div>
+
+                    <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:4px; color:var(--text-sub);">忍び残機統括台帳</div>
+                    <table class="gm-table" style="margin-bottom:12px;">
+                        <thead>
+                            <tr><th>名前</th><th>残機(分身)</th></tr>
+                        </thead>
+                        <tbody id="gm-player-table"></tbody>
+                    </table>
+
+                    <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:4px; color:var(--text-sub);">個別極秘命令の発令</div>
+                    <select id="mission-target-select" style="margin-bottom:4px;"></select>
+                    <textarea id="mission-text-input" style="height:40px; margin-bottom:4px;" placeholder="任務内容..."></textarea>
+                    <button class="btn" style="width:100%; font-size:0.75rem; margin-bottom:12px;" onclick="assignSecretMission()">個別命令を発令</button>
+
+                    <div style="border-top:1px dashed var(--border-color); padding-top:8px;">
+                        <button class="btn btn-danger" style="width:100%; font-size:0.75rem;" onclick="resetRoomData()">🔄 部屋をリセット</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="card" id="pl-private-card">
                 <div class="card-header">秘匿情報（自分のみ閲覧可）</div>
                 <div class="card-body">
-                    <label style="font-size:0.75rem; color:var(--text-sub);">所持品メモ:</label>
+                    <label style="font-size:0.75rem; color:var(--text-sub);">自分の所持品メモ:</label>
                     <textarea id="my-items" style="height: 40px; margin-bottom: 8px;" onchange="saveMyItems()" placeholder="手裏剣, 刀..."></textarea>
                     
                     <label style="font-size:0.75rem; color:var(--accent-gold);">里の裏任務 (GM発令):</label>
@@ -424,9 +292,8 @@
             </div>
         </div>
 
-        <!-- 中央カラム：メインチャット＆マップ -->
+        <!-- 中央カラム：チャット & マップ -->
         <div class="column" style="padding: 0; background: #111214;">
-            <!-- マップ画像エリア -->
             <div style="padding: 10px 10px 0 10px; background: var(--bg-color);">
                 <img id="map-display" src="" alt="マップ">
                 <div id="gm-map-controls" style="display:none; margin-top: 5px;">
@@ -435,7 +302,6 @@
                 </div>
             </div>
 
-            <!-- ココフォリア風メインチャット -->
             <div class="chat-container">
                 <div id="chat-log"></div>
                 <div class="chat-input-area">
@@ -443,7 +309,6 @@
                         <input type="text" id="chat-input" placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') sendChatMessage()">
                         <button class="btn btn-primary" onclick="sendChatMessage()">送信</button>
                     </div>
-                    <!-- 秘匿通信行 -->
                     <div style="display:flex; gap:5px; align-items:center;">
                         <select id="secret-target" style="display:none; width: 110px; font-size:0.75rem;"></select>
                         <input type="text" id="secret-input" placeholder="GMへ秘匿メッセージ..." style="font-size:0.8rem;">
@@ -453,53 +318,25 @@
             </div>
         </div>
 
-        <!-- 右カラム：GM管理・リファレンス -->
+        <!-- 右カラム：プレイヤー一覧 -->
         <div class="column">
-            <!-- GM統括コントロール -->
-            <div class="card" id="gm-panel" style="display: none;">
-                <div class="card-header" style="color:var(--accent-red);">GM専用操作パネル</div>
-                <div class="card-body">
-                    <!-- 天誅ボタン -->
-                    <div style="margin-bottom: 12px; background:#2a1114; padding:8px; border-radius:4px; border:1px solid var(--accent-red);">
-                        <label style="font-size:0.75rem; color:var(--text-sub);">天誅対象:</label>
-                        <select id="tenchu-select" style="margin-bottom:5px;"></select>
-                        <button class="btn btn-danger" style="width: 100%; font-weight:bold;" onclick="triggerTenchu()">⚡ 天誅実行 (SE付き)</button>
-                    </div>
-
-                    <!-- プレイヤー管理テーブル -->
-                    <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:4px; color:var(--text-sub);">忍び統括台帳</div>
-                    <table class="gm-table" style="margin-bottom:12px;">
-                        <thead>
-                            <tr>
-                                <th>名前</th>
-                                <th>分身</th>
-                                <th>ステータス</th>
-                            </tr>
-                        </thead>
-                        <tbody id="gm-player-table"></tbody>
-                    </table>
-
-                    <!-- 里の任務設定 -->
-                    <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:4px; color:var(--text-sub);">個別極秘命令</div>
-                    <select id="mission-target-select" style="margin-bottom:4px;"></select>
-                    <textarea id="mission-text-input" style="height:40px; margin-bottom:4px;" placeholder="任務内容..."></textarea>
-                    <button class="btn" style="width:100%; font-size:0.75rem; margin-bottom:12px;" onclick="assignSecretMission()">個別命令を発令</button>
-
-                    <!-- 部屋リセットボタン (GM限定) -->
-                    <div style="border-top:1px dashed var(--border-color); padding-top:8px;">
-                        <button class="btn btn-danger" style="width:100%; font-size:0.75rem;" onclick="resetRoomData()">🔄 部屋をリセット</button>
-                    </div>
-                </div>
+            <div class="card">
+                <div class="card-header" style="color:var(--accent-blue);">👥 忍び一覧</div>
+                <div class="card-body" id="all-players-container" style="max-height: 320px; overflow-y: auto;"></div>
             </div>
 
-            <!-- リファレンス -->
             <div class="card">
                 <div class="card-header">支給道具一覧</div>
                 <div class="card-body">
                     <ul style="font-size:0.75rem; padding-left: 15px; margin: 0; color:var(--text-sub); line-height:1.6;">
-                        <li><strong>手裏剣/刀</strong>: 全員初期所持</li>
-                        <li><strong>毒吹き矢/爆弾/五色米/煙玉</strong>: 単体隠密可</li>
-                        <li><strong>痺れ団子/火矢/変装道具/地雷/撒き菱/忍犬</strong></li>
+                        <li><strong>手裏剣</strong>: 全員所持 / 「忍」で命中</li>
+                        <li><strong>刀</strong>: 全員所持 / 「体」で命中</li>
+                        <li><strong>痺れ団子</strong>: 食べた者を一定時間痺れさせる</li>
+                        <li><strong>毒吹き矢</strong>: 「忍」で命中・即死</li>
+                        <li><strong>爆弾</strong>: 爆発（隠密可）</li>
+                        <li><strong>変装道具</strong>: 瞬時に化けてNPCを欺く</li>
+                        <li><strong>煙玉</strong>: 広範囲を煙で覆う（隠密可）</li>
+                        <li><strong>撒き菱</strong>: 踏んだ相手は走れなくなる</li>
                     </ul>
                 </div>
             </div>
@@ -509,28 +346,22 @@
     <!-- ルールモーダル -->
     <div id="rule-modal" class="modal">
         <div class="modal-content">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom: 1px solid var(--border-color); padding-bottom:8px;">
                 <h3 style="margin:0; color:var(--text-main);">📜 ルールブック</h3>
-                <span style="cursor:pointer; font-size:1.2rem;" onclick="closeModal('rule-modal')">&times;</span>
+                <span style="cursor:pointer; font-size:1.4rem;" onclick="closeModal('rule-modal')">&times;</span>
             </div>
-            <p style="font-size: 0.8rem; color:var(--text-sub); line-height: 1.6;">
-                <strong>優先順位:</strong> 1. 生きて帰る > 2. 里の任務 > 3. 殿様の任務<br>
-                <strong>能力値:</strong> 体（耐久/刀/分身数）、忍（隠密/命中）、運（交渉/回避）、術（奥義判定）<br>
-                <strong>判定:</strong> 1d20で能力値以下で成功。1は大成功、20は大失敗。奥義失敗は即死。<br>
-                <strong>分身:</strong> 死亡時は記憶を引き継ぎ即座に新しい分身が登場。死ぬことで過去の罪は清算される。
-            </p>
+            <div style="font-size: 0.8rem; color:var(--text-main); line-height: 1.6;">
+                <div class="rule-section">
+                    <div class="rule-title">【概要】</div>
+                    <p style="margin:0;">時は江戸。忍者たちは任務を遂行するフリをしつつ、裏任務を全うします。変な行動をすると「天誅」で殺されますが、分身が次々に登場します。</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- システムロジック ---
         let currentUser = { role: 'PL', name: '', avatar: '' };
-        let roomData = {
-            lastUpdated: Date.now(),
-            mapImage: '',
-            players: {},
-            logs: []
-        };
+        window.roomData = { mapImage: '', players: {}, logs: [] };
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -566,49 +397,19 @@
         }
 
         window.onload = function() {
-            loadRoomData();
-            checkRoomExpiration();
+            if (window.initFirebaseListener) window.initFirebaseListener();
         };
 
-        function checkRoomExpiration() {
-            const saved = localStorage.getItem('ninja_trpg_room');
-            if (saved) {
-                const data = JSON.parse(saved);
-                const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-                if (Date.now() - data.lastUpdated > ONE_WEEK) {
-                    localStorage.removeItem('ninja_trpg_room');
-                    alert('前回のセッションから1週間が経過したため、部屋データは自動消去されました。');
-                    location.reload();
-                }
-            }
-        }
-
-        function saveRoomData() {
-            roomData.lastUpdated = Date.now();
-            localStorage.setItem('ninja_trpg_room', JSON.stringify(roomData));
-            refreshUI();
-        }
-
-        function loadRoomData() {
-            const saved = localStorage.getItem('ninja_trpg_room');
-            if (saved) {
-                roomData = JSON.parse(saved);
-            }
+        function saveToFirebase() {
+            const roomRef = window.fs.doc(window.db, "rooms", "default_room");
+            window.fs.setDoc(roomRef, window.roomData);
         }
 
         function resetRoomData() {
             if (currentUser.role !== 'GM') return;
-            const confirmed = confirm('本当に部屋のデータを初期化しますか？\n（ログ、マップ、すべてのプレイヤー情報が消去されます）');
-            if (confirmed) {
-                localStorage.removeItem('ninja_trpg_room');
-                roomData = {
-                    lastUpdated: Date.now(),
-                    mapImage: '',
-                    players: {},
-                    logs: []
-                };
-                alert('部屋のデータをリセットしました。');
-                location.reload();
+            if (confirm('本当に部屋のデータを初期化しますか？')) {
+                window.roomData = { mapImage: '', players: {}, logs: [] };
+                saveToFirebase();
             }
         }
 
@@ -626,15 +427,16 @@
                 if (!name) { alert('名前を入力してください'); return; }
                 currentUser.name = name;
 
-                if (!roomData.players[name]) {
-                    roomData.players[name] = {
-                        lives: 10,
+                if (!window.roomData.players[name]) {
+                    const initialLives = Math.floor(Math.random() * 5) + 8;
+                    window.roomData.players[name] = {
+                        lives: initialLives,
                         stats: { tai: 11, nin: 11, un: 11, jutsu: 11 },
                         items: '手裏剣, 刀',
                         mission: '',
                         avatar: ''
                     };
-                    saveRoomData();
+                    saveToFirebase();
                 }
             } else {
                 currentUser.name = 'GM(殿様)';
@@ -651,7 +453,7 @@
                 document.getElementById('pl-avatar-card').style.display = 'none';
                 document.getElementById('secret-target').style.display = 'inline-block';
             } else {
-                const pData = roomData.players[currentUser.name];
+                const pData = window.roomData.players[currentUser.name];
                 if (pData) {
                     document.getElementById('my-items').value = pData.items || '';
                     document.getElementById('st-tai').value = pData.stats.tai;
@@ -687,20 +489,20 @@
 
         function saveMyStats() {
             if (currentUser.role !== 'PL') return;
-            roomData.players[currentUser.name].stats = {
+            window.roomData.players[currentUser.name].stats = {
                 tai: parseInt(document.getElementById('st-tai').value),
                 nin: parseInt(document.getElementById('st-nin').value),
                 un: parseInt(document.getElementById('st-un').value),
                 jutsu: parseInt(document.getElementById('st-jutsu').value)
             };
-            saveRoomData();
+            saveToFirebase();
             alert('ステータスを確定しました。');
         }
 
         function saveMyItems() {
             if (currentUser.role !== 'PL') return;
-            roomData.players[currentUser.name].items = document.getElementById('my-items').value;
-            saveRoomData();
+            window.roomData.players[currentUser.name].items = document.getElementById('my-items').value;
+            saveToFirebase();
         }
 
         function uploadAvatar(fileInput) {
@@ -711,8 +513,8 @@
                 const base64 = e.target.result;
                 document.getElementById('my-avatar-preview').src = base64;
                 if (currentUser.role === 'PL') {
-                    roomData.players[currentUser.name].avatar = base64;
-                    saveRoomData();
+                    window.roomData.players[currentUser.name].avatar = base64;
+                    saveToFirebase();
                 }
             };
             reader.readAsDataURL(file);
@@ -723,8 +525,8 @@
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    roomData.mapImage = e.target.result;
-                    saveRoomData();
+                    window.roomData.mapImage = e.target.result;
+                    saveToFirebase();
                 };
                 reader.readAsDataURL(input.files[0]);
             }
@@ -748,14 +550,14 @@
                 resultMsg += (roll <= target) ? "【成功】" : "【失敗】";
             }
 
-            const avatar = currentUser.role === 'PL' ? (roomData.players[currentUser.name]?.avatar || '') : '';
-            roomData.logs.push({
+            const avatar = currentUser.role === 'PL' ? (window.roomData.players[currentUser.name]?.avatar || '') : '';
+            window.roomData.logs.push({
                 sender: currentUser.name,
                 text: resultMsg,
                 avatar: avatar,
                 isSecret: false
             });
-            saveRoomData();
+            saveToFirebase();
         }
 
         function sendChatMessage() {
@@ -763,15 +565,15 @@
             const text = input.value.trim();
             if (!text) return;
 
-            const avatar = currentUser.role === 'PL' ? (roomData.players[currentUser.name]?.avatar || '') : '';
-            roomData.logs.push({
+            const avatar = currentUser.role === 'PL' ? (window.roomData.players[currentUser.name]?.avatar || '') : '';
+            window.roomData.logs.push({
                 sender: currentUser.name,
                 text: text,
                 avatar: avatar,
                 isSecret: false
             });
             input.value = '';
-            saveRoomData();
+            saveToFirebase();
         }
 
         function sendSecretMessage() {
@@ -784,7 +586,7 @@
                 targetName = document.getElementById('secret-target').value;
             }
 
-            roomData.logs.push({
+            window.roomData.logs.push({
                 sender: `${currentUser.name} 🔒 (${targetName}へ)`,
                 text: text,
                 avatar: '',
@@ -793,7 +595,7 @@
                 fromUser: currentUser.name
             });
             input.value = '';
-            saveRoomData();
+            saveToFirebase();
         }
 
         function triggerTenchu() {
@@ -809,40 +611,40 @@
 
             setTimeout(() => { overlay.style.display = 'none'; }, 1800);
 
-            if (roomData.players[target]) {
-                roomData.players[target].lives = Math.max(0, roomData.players[target].lives - 1);
+            if (window.roomData.players[target]) {
+                window.roomData.players[target].lives = Math.max(0, window.roomData.players[target].lives - 1);
             }
 
-            roomData.logs.push({
+            window.roomData.logs.push({
                 sender: '⚡ GM(天誅)',
                 text: `「天誅！天誅！天誅！」 ${target} は雷を受け分身を失った！`,
                 avatar: '',
                 isSecret: false
             });
-            saveRoomData();
+            saveToFirebase();
         }
 
         function assignSecretMission() {
             const target = document.getElementById('mission-target-select').value;
             const text = document.getElementById('mission-text-input').value;
-            if (roomData.players[target]) {
-                roomData.players[target].mission = text;
-                saveRoomData();
+            if (window.roomData.players[target]) {
+                window.roomData.players[target].mission = text;
+                saveToFirebase();
                 alert(`${target} へ個別命令を設定しました。`);
             }
         }
 
         function updateGmLives(name, change) {
-            if (roomData.players[name]) {
-                roomData.players[name].lives = Math.max(0, roomData.players[name].lives + change);
-                saveRoomData();
+            if (window.roomData.players[name]) {
+                window.roomData.players[name].lives = Math.max(0, window.roomData.players[name].lives + change);
+                saveToFirebase();
             }
         }
 
         function refreshUI() {
             const mapImg = document.getElementById('map-display');
-            if (roomData.mapImage) {
-                mapImg.src = roomData.mapImage;
+            if (window.roomData.mapImage) {
+                mapImg.src = window.roomData.mapImage;
                 mapImg.style.display = 'block';
             } else {
                 mapImg.style.display = 'none';
@@ -850,7 +652,7 @@
 
             const logEl = document.getElementById('chat-log');
             logEl.innerHTML = '';
-            roomData.logs.forEach(log => {
+            (window.roomData.logs || []).forEach(log => {
                 if (log.isSecret) {
                     const isForMe = (currentUser.role === 'GM' && log.forUser === 'GM(殿様)') || 
                                     log.forUser === currentUser.name || 
@@ -875,8 +677,38 @@
             });
             logEl.scrollTop = logEl.scrollHeight;
 
-            if (currentUser.role === 'PL' && roomData.players[currentUser.name]) {
-                document.getElementById('my-secret-mission').innerText = roomData.players[currentUser.name].mission || '(未設定)';
+            if (currentUser.role === 'PL' && window.roomData.players[currentUser.name]) {
+                document.getElementById('my-secret-mission').innerText = window.roomData.players[currentUser.name].mission || '(未設定)';
+            }
+
+            const allPlayersContainer = document.getElementById('all-players-container');
+            allPlayersContainer.innerHTML = '';
+            const playerKeys = Object.keys(window.roomData.players || {});
+
+            if (playerKeys.length === 0) {
+                allPlayersContainer.innerHTML = '<div style="font-size:0.75rem; color:var(--text-sub);">参加中のプレイヤーはいません</div>';
+            } else {
+                playerKeys.forEach(pName => {
+                    const p = window.roomData.players[pName];
+                    const card = document.createElement('div');
+                    card.className = 'player-info-card';
+                    card.innerHTML = `
+                        <div class="player-info-header">
+                            <span>${escapeHtml(pName)}</span>
+                            <span style="font-size:0.75rem; color:var(--accent-gold);">残分身: ${p.lives}人</span>
+                        </div>
+                        <div class="player-info-stats">
+                            <div>体:${p.stats.tai}</div>
+                            <div>忍:${p.stats.nin}</div>
+                            <div>運:${p.stats.un}</div>
+                            <div>術:${p.stats.jutsu}</div>
+                        </div>
+                        <div class="player-info-items">
+                            <strong>所持品:</strong> ${escapeHtml(p.items || 'なし')}
+                        </div>
+                    `;
+                    allPlayersContainer.appendChild(card);
+                });
             }
 
             if (currentUser.role === 'GM') {
@@ -890,8 +722,8 @@
                 secretSel.innerHTML = '';
                 missionSel.innerHTML = '';
 
-                Object.keys(roomData.players).forEach(pName => {
-                    const p = roomData.players[pName];
+                playerKeys.forEach(pName => {
+                    const p = window.roomData.players[pName];
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><strong>${escapeHtml(pName)}</strong></td>
@@ -900,7 +732,6 @@
                             ${p.lives}
                             <button class="btn" style="padding:0 4px;" onclick="updateGmLives('${pName}', 1)">+</button>
                         </td>
-                        <td>${p.stats.tai}/${p.stats.nin}/${p.stats.un}/${p.stats.jutsu}</td>
                     `;
                     tbody.appendChild(tr);
 
