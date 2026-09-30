@@ -32,7 +32,7 @@
                 if (docSnap.exists()) {
                     window.roomData = docSnap.data();
                 } else {
-                    window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 } };
+                    window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 }, pieces: {}, gmAvatar: '' };
                     setDoc(roomRef, window.roomData);
                 }
                 if (typeof window.refreshUI === 'function') {
@@ -118,19 +118,51 @@
         }
         .card-body { padding: 12px; }
 
-        .chat-container { display: flex; flex-direction: column; height: 100%; }
-        #chat-log { flex: 1; overflow-y: auto; padding: 12px; background: #111214; display: flex; flex-direction: column; gap: 12px; }
-        .chat-item { display: flex; gap: 10px; align-items: flex-start; }
-        .chat-avatar { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #2b2d31; flex-shrink: 0; border: 1px solid var(--border-color); }
+        /* 中央エリア：マップ＆チャットの可変表示 */
+        .center-column {
+            display: flex; flex-direction: column; height: 100%; background: #111214; padding: 10px; gap: 0; overflow: hidden;
+        }
+
+        .map-wrapper {
+            flex: 1; min-height: 100px; position: relative; background: #000; border: 1px solid var(--border-color);
+            border-radius: 6px; overflow: hidden; display: flex; justify-content: center; align-items: center;
+        }
+        #map-display { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        
+        /* リサイズスプリッターバー */
+        .resizer {
+            height: 8px; background: #222428; cursor: ns-resize; display: flex; justify-content: center; align-items: center;
+            margin: 4px 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); user-select: none;
+        }
+        .resizer::after { content: "•••"; color: var(--text-sub); font-size: 10px; letter-spacing: 2px; }
+
+        /* マップ上のコマ */
+        .map-piece {
+            position: absolute; width: 44px; height: 44px; border-radius: 50%;
+            border: 2px solid var(--accent-gold); box-shadow: 0 0 8px rgba(0,0,0,0.8);
+            cursor: grab; user-select: none; touch-action: none; background-size: cover; background-position: center;
+            display: flex; justify-content: center; align-items: flex-end; z-index: 10;
+        }
+        .map-piece:active { cursor: grabbing; z-index: 100; scale: 1.1; }
+        .piece-label {
+            background: rgba(0,0,0,0.75); color: #fff; font-size: 0.65rem; padding: 1px 4px;
+            border-radius: 3px; white-space: nowrap; max-width: 50px; overflow: hidden; text-overflow: ellipsis;
+            transform: translateY(12px); border: 1px solid var(--border-color);
+        }
+
+        .chat-container { display: flex; flex-direction: column; height: 170px; min-height: 100px; flex-shrink: 0; }
+        #chat-log { flex: 1; overflow-y: auto; padding: 8px; background: #18191c; border-radius: 4px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px; }
+        .chat-item { display: flex; gap: 8px; align-items: flex-start; }
+        .chat-avatar { width: 30px; height: 30px; border-radius: 4px; object-fit: cover; background: #2b2d31; flex-shrink: 0; border: 1px solid var(--border-color); }
         .chat-content { flex: 1; }
-        .chat-header-info { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-        .chat-name { font-size: 0.85rem; font-weight: 600; color: var(--accent-blue); }
+        .chat-header-info { display: flex; align-items: center; gap: 6px; }
+        .chat-name { font-size: 0.75rem; font-weight: 600; color: var(--accent-blue); }
         .chat-text {
-            font-size: 0.9rem; color: var(--text-main); line-height: 1.4; word-break: break-word;
-            background: #2b2d31; padding: 6px 10px; border-radius: 0 6px 6px 6px; display: inline-block;
+            font-size: 0.8rem; color: var(--text-main); line-height: 1.3; word-break: break-word;
+            background: #2b2d31; padding: 4px 8px; border-radius: 0 6px 6px 6px; display: inline-block;
         }
         .chat-secret .chat-text { background: #2d1836; border: 1px solid var(--accent-purple); color: #e0b0ff; }
-        .chat-input-area { padding: 10px; background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
+        .chat-input-area { padding-top: 6px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 
         input[type="text"], input[type="number"], select, textarea {
             background-color: var(--input-bg); border: 1px solid var(--border-color);
@@ -138,19 +170,22 @@
         }
         input:focus, select:focus, textarea:focus { outline: none; border-color: #5865f2; }
 
-        #map-display { width: 100%; height: 220px; object-fit: contain; background: #000; border-radius: 4px; display: none; }
-
         .gm-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        .gm-table th, .gm-table td { border: 1px solid var(--border-color); padding: 6px; text-align: center; }
+        .gm-table th, .gm-table td { border: 1px solid var(--border-color); padding: 6px 4px; text-align: center; }
         .gm-table th { background: var(--card-header-bg); color: var(--text-sub); }
 
         .player-info-card { background: #1e1f22; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; margin-bottom: 8px; display: flex; gap: 8px; }
         .player-info-card:last-child { margin-bottom: 0; }
-        .player-info-avatar { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; background: #111214; border: 1px solid var(--border-color); flex-shrink: 0; }
+        .player-info-avatar { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; background: #111214; border: 1px solid var(--border-color); flex-shrink: 0; }
         .player-info-main { flex: 1; }
         .player-info-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.85rem; color: var(--accent-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin-bottom: 6px; }
         .player-info-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 0.75rem; text-align: center; background: #111214; padding: 4px; border-radius: 4px; margin-bottom: 6px; }
         .player-info-items { font-size: 0.75rem; color: var(--text-sub); word-break: break-all; }
+
+        /* 支給品道具カードの縦長化 */
+        .items-card-body {
+            max-height: calc(100vh - 420px); overflow-y: auto; padding: 12px;
+        }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(2px); }
         .modal-content { background: var(--card-bg); width: 90%; max-width: 650px; max-height: 85vh; overflow-y: auto; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
@@ -223,7 +258,7 @@
     </div>
 
     <!-- BGMオーディオタグ -->
-    <audio id="bgm-player" loop></audio>
+    <audio id="bgm-player" loop preload="auto" crossorigin="anonymous"></audio>
 
     <!-- ヘッダー -->
     <header>
@@ -268,8 +303,18 @@
                         <option value="100">100面ダイス (1d100)</option>
                     </select>
                     <div style="display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                        <span>能力参照:</span>
+                        <select id="dice-stat-select" onchange="onSelectDiceStat(this.value)">
+                            <option value="custom">直接入力</option>
+                            <option value="tai">体 (身体)</option>
+                            <option value="nin">忍 (隠密)</option>
+                            <option value="un">運 (幸運)</option>
+                            <option value="jutsu">術 (知略)</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px; font-size:0.8rem;">
                         <span>目標値:</span>
-                        <input type="number" id="dice-target" value="10">
+                        <input type="number" id="dice-target" value="11">
                     </div>
                     <button class="btn btn-primary" onclick="rollDice()">ダイスを振る</button>
                 </div>
@@ -279,6 +324,15 @@
             <div class="card" id="gm-panel" style="display: none; border: 1px solid var(--accent-red);">
                 <div class="card-header" style="color:var(--accent-red); background:#2a1114;">⚙️ GM専用操作パネル</div>
                 <div class="card-body">
+                    <!-- GM立ち絵変更 -->
+                    <div style="margin-bottom: 10px; background:#1e1f22; padding:8px; border-radius:4px; border:1px solid var(--border-color);">
+                        <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:4px; color:var(--text-sub);">GM立ち絵設定</div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <img id="gm-avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' fill='%23333'/></svg>" style="width:40px; height:40px; border-radius:4px; object-fit:cover; border:1px solid var(--border-color);">
+                            <input type="file" id="gm-avatar-input" accept="image/*" onchange="uploadGmAvatar(this)" style="font-size:0.75rem;">
+                        </div>
+                    </div>
+
                     <!-- BGMコントロール -->
                     <div style="margin-bottom: 12px; background:#1e1f22; padding:8px; border-radius:4px; border:1px solid var(--border-color);">
                         <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:6px; color:var(--accent-gold);">🎵 セッションBGM管理</div>
@@ -302,7 +356,7 @@
                     <div style="font-size: 0.8rem; font-weight:bold; margin-bottom:4px; color:var(--text-sub);">忍び残機統括台帳</div>
                     <table class="gm-table" style="margin-bottom:12px;">
                         <thead>
-                            <tr><th>名前</th><th>残機(分身)</th></tr>
+                            <tr><th>名前</th><th>残機(分身)</th><th>操作</th></tr>
                         </thead>
                         <tbody id="gm-player-table"></tbody>
                     </table>
@@ -332,17 +386,24 @@
             </div>
         </div>
 
-        <!-- 中央カラム：チャット & マップ -->
-        <div class="column" style="padding: 0; background: #111214;">
-            <div style="padding: 10px 10px 0 10px; background: var(--bg-color);">
-                <img id="map-display" src="" alt="マップ">
-                <div id="gm-map-controls" style="display:none; margin-top: 5px;">
-                    <input type="file" id="map-input" accept="image/*" style="font-size:0.75rem;">
-                    <button class="btn" onclick="shareMap()">マップ公開</button>
+        <!-- 中央カラム：マップ & チャット（ドラッグで比率可変） -->
+        <div class="center-column" id="center-column">
+            <!-- マップ＆コマ配置エリア -->
+            <div class="map-wrapper" id="map-wrapper">
+                <img id="map-display" src="" alt="マップ" style="display:none;">
+                <div id="pieces-layer"></div>
+                
+                <div id="gm-map-controls" style="display:none; position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.7); padding:6px; border-radius:4px; z-index:20;">
+                    <input type="file" id="map-input" accept="image/*" style="font-size:0.7rem; color:#fff;">
+                    <button class="btn" style="font-size:0.75rem;" onclick="shareMap()">マップ背景更新</button>
                 </div>
             </div>
 
-            <div class="chat-container">
+            <!-- 可変サイズリサイズバー -->
+            <div class="resizer" id="resizer"></div>
+
+            <!-- チャットコンテナ -->
+            <div class="chat-container" id="chat-container">
                 <div id="chat-log"></div>
                 <div class="chat-input-area">
                     <div style="display:flex; gap:5px;">
@@ -358,16 +419,16 @@
             </div>
         </div>
 
-        <!-- 右カラム：プレイヤー一覧 & 支給品道具 -->
+        <!-- 右カラム：プレイヤー一覧 & 縦長の支給品道具 -->
         <div class="column">
             <div class="card">
                 <div class="card-header" style="color:var(--accent-blue);">👥 忍び一覧</div>
-                <div class="card-body" id="all-players-container" style="max-height: 320px; overflow-y: auto;"></div>
+                <div class="card-body" id="all-players-container" style="max-height: 200px; overflow-y: auto;"></div>
             </div>
 
-            <div class="card">
+            <div class="card" style="flex:1; display:flex; flex-direction:column;">
                 <div class="card-header">支給品道具一覧</div>
-                <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                <div class="card-body items-card-body">
                     <ul style="font-size:0.75rem; padding-left: 15px; margin: 0; color:var(--text-sub); line-height:1.6;">
                         <li style="margin-bottom:6px;"><strong>手裏剣</strong>: 全員所持 / 「忍」で命中。遠距離の敵を攻撃する。</li>
                         <li style="margin-bottom:6px;"><strong>刀</strong>: 全員所持 / 「体」で命中。近接の敵を斬り伏せる。</li>
@@ -441,39 +502,50 @@
 
     <script>
         let currentUser = { role: 'PL', name: '', avatar: '' };
-        window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 } };
+        window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 }, pieces: {}, gmAvatar: '' };
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
+        let audioCtx;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
         function playDiceSound() {
+            const ctx = getAudioContext();
             for (let i = 0; i < 5; i++) {
                 setTimeout(() => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(150 + Math.random() * 200, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    osc.frequency.setValueAtTime(150 + Math.random() * 200, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
                     osc.connect(gain);
-                    gain.connect(audioCtx.destination);
+                    gain.connect(ctx.destination);
                     osc.start();
-                    osc.stop(audioCtx.currentTime + 0.05);
+                    osc.stop(ctx.currentTime + 0.05);
                 }, i * 60);
             }
         }
 
         function playTenchuSound() {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
+            const ctx = getAudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(180, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.8);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+            osc.frequency.setValueAtTime(180, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.8);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.8);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(ctx.destination);
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.8);
+            osc.stop(ctx.currentTime + 0.8);
         }
 
         window.onload = function() {
@@ -484,16 +556,47 @@
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = function(evt) {
-                    window.roomData.bgm = {
-                        url: evt.target.result,
-                        playing: true,
-                        volume: parseFloat(document.getElementById('bgm-volume').value)
-                    };
+                    if (!window.roomData.bgm) window.roomData.bgm = {};
+                    window.roomData.bgm.url = evt.target.result;
+                    window.roomData.bgm.playing = true;
+                    window.roomData.bgm.volume = parseFloat(document.getElementById('bgm-volume').value);
                     saveToFirebase();
                 };
                 reader.readAsDataURL(file);
             });
+
+            initResizer();
         };
+
+        /* マップとチャットのリサイズ制御機能 */
+        function initResizer() {
+            const resizer = document.getElementById('resizer');
+            const chatContainer = document.getElementById('chat-container');
+            const centerColumn = document.getElementById('center-column');
+
+            let isResizing = false;
+
+            resizer.addEventListener('pointerdown', (e) => {
+                isResizing = true;
+                resizer.setPointerCapture(e.pointerId);
+            });
+
+            resizer.addEventListener('pointermove', (e) => {
+                if (!isResizing) return;
+                const centerRect = centerColumn.getBoundingClientRect();
+                const newChatHeight = centerRect.bottom - e.clientY;
+                if (newChatHeight > 80 && newChatHeight < centerRect.height - 120) {
+                    chatContainer.style.height = `${newChatHeight}px`;
+                }
+            });
+
+            resizer.addEventListener('pointerup', (e) => {
+                if (isResizing) {
+                    isResizing = false;
+                    resizer.releasePointerCapture(e.pointerId);
+                }
+            });
+        }
 
         function saveToFirebase() {
             const roomRef = window.fs.doc(window.db, "rooms", "default_room");
@@ -503,7 +606,7 @@
         function resetRoomData() {
             if (currentUser.role !== 'GM') return;
             if (confirm('本当に部屋のデータを初期化しますか？')) {
-                window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 } };
+                window.roomData = { mapImage: '', players: {}, logs: [], bgm: { url: '', playing: false, volume: 0.5 }, pieces: {}, gmAvatar: '' };
                 saveToFirebase();
             }
         }
@@ -514,6 +617,7 @@
         }
 
         function joinRoom() {
+            getAudioContext();
             const role = document.querySelector('input[name="role-select"]:checked').value;
             currentUser.role = role;
 
@@ -531,10 +635,21 @@
                         mission: '',
                         avatar: ''
                     };
-                    saveToFirebase();
                 }
+                
+                // コマ情報の初期登録
+                if (!window.roomData.pieces) window.roomData.pieces = {};
+                if (!window.roomData.pieces[name]) {
+                    window.roomData.pieces[name] = { x: 20 + Math.random() * 40, y: 20 + Math.random() * 40 };
+                }
+                saveToFirebase();
             } else {
                 currentUser.name = 'GM(殿様)';
+                if (!window.roomData.pieces) window.roomData.pieces = {};
+                if (!window.roomData.pieces['GM(殿様)']) {
+                    window.roomData.pieces['GM(殿様)'] = { x: 10, y: 10 };
+                }
+                saveToFirebase();
             }
 
             document.getElementById('entry-screen').style.display = 'none';
@@ -547,6 +662,9 @@
                 document.getElementById('pl-private-card').style.display = 'none';
                 document.getElementById('pl-avatar-card').style.display = 'none';
                 document.getElementById('secret-target').style.display = 'inline-block';
+                if (window.roomData.gmAvatar) {
+                    document.getElementById('gm-avatar-preview').src = window.roomData.gmAvatar;
+                }
             } else {
                 const pData = window.roomData.players[currentUser.name];
                 if (pData) {
@@ -594,6 +712,18 @@
             alert('ステータスを確定しました。');
         }
 
+        function onSelectDiceStat(type) {
+            if (type === 'custom') return;
+            if (currentUser.role !== 'PL') {
+                alert('GMは直接入力欄で数値を指定してください。');
+                return;
+            }
+            const stats = window.roomData.players[currentUser.name]?.stats;
+            if (stats && stats[type] !== undefined) {
+                document.getElementById('dice-target').value = stats[type];
+            }
+        }
+
         function saveMyItems() {
             if (currentUser.role !== 'PL') return;
             window.roomData.players[currentUser.name].items = document.getElementById('my-items').value;
@@ -616,6 +746,20 @@
             reader.readAsDataURL(file);
         }
 
+        function uploadGmAvatar(fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result;
+                document.getElementById('gm-avatar-preview').src = base64;
+                window.roomData.gmAvatar = base64;
+                currentUser.avatar = base64;
+                saveToFirebase();
+            };
+            reader.readAsDataURL(file);
+        }
+
         function shareMap() {
             const input = document.getElementById('map-input');
             if (input.files && input.files[0]) {
@@ -629,14 +773,15 @@
         }
 
         function rollDice() {
-            audioCtx.resume();
             playDiceSound();
 
             const diceType = parseInt(document.getElementById('dice-type').value);
             const target = parseInt(document.getElementById('dice-target').value);
             const roll = Math.floor(Math.random() * diceType) + 1;
+            const statSelect = document.getElementById('dice-stat-select');
+            const statLabel = statSelect.options[statSelect.selectedIndex].text;
 
-            let resultMsg = `${diceType}面ダイス: 出目 ${roll} / 目標 ${target} → `;
+            let resultMsg = `${statSelect.value !== 'custom' ? '['+statLabel+'] ' : ''}${diceType}面ダイス: 出目 ${roll} / 目標 ${target} → `;
             if (diceType === 20) {
                 if (roll === 1) resultMsg += "【大成功】";
                 else if (roll === 20) resultMsg += "【大失敗】";
@@ -646,9 +791,10 @@
                 resultMsg += (roll <= target) ? "【成功】" : "【失敗】";
             }
 
-            const avatar = currentUser.role === 'PL' ? (window.roomData.players[currentUser.name]?.avatar || '') : '';
+            const avatar = currentUser.role === 'PL' 
+                ? (window.roomData.players[currentUser.name]?.avatar || '') 
+                : (window.roomData.gmAvatar || '');
 
-            // 立ち絵設定時のポップアップ演出
             showDicePopup(currentUser.name, avatar, resultMsg);
 
             window.roomData.logs.push({
@@ -687,7 +833,10 @@
             const text = input.value.trim();
             if (!text) return;
 
-            const avatar = currentUser.role === 'PL' ? (window.roomData.players[currentUser.name]?.avatar || '') : '';
+            const avatar = currentUser.role === 'PL' 
+                ? (window.roomData.players[currentUser.name]?.avatar || '') 
+                : (window.roomData.gmAvatar || '');
+
             window.roomData.logs.push({
                 sender: currentUser.name,
                 text: text,
@@ -721,7 +870,6 @@
         }
 
         function triggerTenchu() {
-            audioCtx.resume();
             playTenchuSound();
 
             const target = document.getElementById('tenchu-select').value;
@@ -740,13 +888,14 @@
             window.roomData.logs.push({
                 sender: '⚡ GM(天誅)',
                 text: `「天誅！天誅！天誅！」 ${target} は雷を受け分身を失った！`,
-                avatar: '',
+                avatar: window.roomData.gmAvatar || '',
                 isSecret: false
             });
             saveToFirebase();
         }
 
         function toggleBgmPlay(play) {
+            getAudioContext();
             if (!window.roomData.bgm) window.roomData.bgm = {};
             window.roomData.bgm.playing = play;
             saveToFirebase();
@@ -777,23 +926,83 @@
             }
         }
 
+        /* GM用：プレイヤー削除機能 */
+        function deletePlayer(name) {
+            if (currentUser.role !== 'GM') return;
+            if (confirm(`本当に忍び「${name}」のデータを削除しますか？`)) {
+                delete window.roomData.players[name];
+                if (window.roomData.pieces && window.roomData.pieces[name]) {
+                    delete window.roomData.pieces[name];
+                }
+                saveToFirebase();
+            }
+        }
+
+        /* コマドラッグ処理 */
+        let draggingPieceName = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        function makePieceDraggable(el, name) {
+            el.addEventListener('pointerdown', (e) => {
+                draggingPieceName = name;
+                const wrapper = document.getElementById('map-wrapper').getBoundingClientRect();
+                const pieceRect = el.getBoundingClientRect();
+                dragOffset.x = e.clientX - pieceRect.left;
+                dragOffset.y = e.clientY - pieceRect.top;
+                el.setPointerCapture(e.pointerId);
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if (draggingPieceName !== name) return;
+                const wrapper = document.getElementById('map-wrapper').getBoundingClientRect();
+                let leftPercent = ((e.clientX - dragOffset.x - wrapper.left) / wrapper.width) * 100;
+                let topPercent = ((e.clientY - dragOffset.y - wrapper.top) / wrapper.height) * 100;
+
+                leftPercent = Math.max(0, Math.min(92, leftPercent));
+                topPercent = Math.max(0, Math.min(92, topPercent));
+
+                el.style.left = leftPercent + '%';
+                el.style.top = topPercent + '%';
+            });
+
+            el.addEventListener('pointerup', (e) => {
+                if (draggingPieceName === name) {
+                    const wrapper = document.getElementById('map-wrapper').getBoundingClientRect();
+                    const pieceRect = el.getBoundingClientRect();
+                    const leftPercent = ((pieceRect.left - wrapper.left) / wrapper.width) * 100;
+                    const topPercent = ((pieceRect.top - wrapper.top) / wrapper.height) * 100;
+
+                    if (!window.roomData.pieces) window.roomData.pieces = {};
+                    window.roomData.pieces[name] = { x: leftPercent, y: topPercent };
+                    saveToFirebase();
+                    draggingPieceName = null;
+                }
+            });
+        }
+
         function refreshUI() {
-            // BGMの更新処理
+            // BGMの安定再生・途切れ修正処理
             const bgmPlayer = document.getElementById('bgm-player');
             if (window.roomData.bgm && window.roomData.bgm.url) {
                 if (bgmPlayer.src !== window.roomData.bgm.url) {
                     bgmPlayer.src = window.roomData.bgm.url;
+                    bgmPlayer.load();
                 }
                 bgmPlayer.volume = window.roomData.bgm.volume !== undefined ? window.roomData.bgm.volume : 0.5;
                 if (window.roomData.bgm.playing) {
-                    bgmPlayer.play().catch(() => {});
+                    if (bgmPlayer.paused) {
+                        bgmPlayer.play().catch(() => {});
+                    }
                 } else {
-                    bgmPlayer.pause();
+                    if (!bgmPlayer.paused) {
+                        bgmPlayer.pause();
+                    }
                 }
             } else {
                 bgmPlayer.pause();
             }
 
+            // マップ表示の更新
             const mapImg = document.getElementById('map-display');
             if (window.roomData.mapImage) {
                 mapImg.src = window.roomData.mapImage;
@@ -802,6 +1011,32 @@
                 mapImg.style.display = 'none';
             }
 
+            // マップ上のコマ描画
+            const piecesLayer = document.getElementById('pieces-layer');
+            piecesLayer.innerHTML = '';
+            const pieces = window.roomData.pieces || {};
+            Object.keys(pieces).forEach(pName => {
+                const pos = pieces[pName];
+                let avatar = '';
+                if (pName === 'GM(殿様)') {
+                    avatar = window.roomData.gmAvatar || '';
+                } else if (window.roomData.players[pName]) {
+                    avatar = window.roomData.players[pName].avatar || '';
+                }
+
+                const pieceEl = document.createElement('div');
+                pieceEl.className = 'map-piece';
+                pieceEl.style.left = pos.x + '%';
+                pieceEl.style.top = pos.y + '%';
+                if (avatar) pieceEl.style.backgroundImage = `url(${avatar})`;
+                else pieceEl.style.backgroundColor = '#5865f2';
+
+                pieceEl.innerHTML = `<span class="piece-label">${escapeHtml(pName)}</span>`;
+                makePieceDraggable(pieceEl, pName);
+                piecesLayer.appendChild(pieceEl);
+            });
+
+            // チャットログ更新
             const logEl = document.getElementById('chat-log');
             logEl.innerHTML = '';
             (window.roomData.logs || []).forEach(log => {
@@ -814,7 +1049,7 @@
 
                 const div = document.createElement('div');
                 div.className = `chat-item ${log.isSecret ? 'chat-secret' : ''}`;
-                const avatarSrc = log.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' fill='%232b2d31'/></svg>";
+                const avatarSrc = log.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><rect width='30' height='30' fill='%232b2d31'/></svg>";
                 
                 div.innerHTML = `
                     <img class="chat-avatar" src="${avatarSrc}">
@@ -833,6 +1068,7 @@
                 document.getElementById('my-secret-mission').innerText = window.roomData.players[currentUser.name].mission || '(未設定)';
             }
 
+            // プレイヤー一覧
             const allPlayersContainer = document.getElementById('all-players-container');
             allPlayersContainer.innerHTML = '';
             const playerKeys = Object.keys(window.roomData.players || {});
@@ -844,7 +1080,7 @@
                     const p = window.roomData.players[pName];
                     const card = document.createElement('div');
                     card.className = 'player-info-card';
-                    const avatarSrc = p.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect width='48' height='48' fill='%232b2d31'/></svg>";
+                    const avatarSrc = p.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><rect width='44' height='44' fill='%232b2d31'/></svg>";
                     
                     card.innerHTML = `
                         <img class="player-info-avatar" src="${avatarSrc}">
@@ -868,6 +1104,7 @@
                 });
             }
 
+            // GM操作パネル選択肢更新
             if (currentUser.role === 'GM') {
                 const tbody = document.getElementById('gm-player-table');
                 const tenchuSel = document.getElementById('tenchu-select');
@@ -888,6 +1125,9 @@
                             <button class="btn" style="padding:0 4px;" onclick="updateGmLives('${pName}', -1)">-</button>
                             ${p.lives}
                             <button class="btn" style="padding:0 4px;" onclick="updateGmLives('${pName}', 1)">+</button>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" style="padding:2px 6px; font-size:0.7rem;" onclick="deletePlayer('${pName}')">🗑️</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
